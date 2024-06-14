@@ -226,6 +226,7 @@ class GschemExporter(NetlistExporter):
         x, y = self.get_pin(pins, pinnumber="1")[:2]
         for p in pins:
             sp = self.get_pin(sym_pins, p[2], p[3])
+            if sp is None: continue
             coords = [round(self.spread*x+offset[0], -2)+rmat[0]*sp[0]*flip+rmat[1]*sp[1], round(self.spread*y+offset[1], -2)+rmat[2]*sp[0]*flip+rmat[3]*sp[1]]
             #print(sym_pins, p, coords)
             self.net_points[p[4]].append(coords)

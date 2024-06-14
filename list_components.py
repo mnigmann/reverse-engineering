@@ -2,6 +2,9 @@ import tkinter
 from tkinter import ttk
 from tkinter import simpledialog
 
+import cv2.cv2
+
+
 class ComponentListDialog(tkinter.Toplevel):
     def __init__(self, components: dict, pins: dict, scrollto_command):
         super().__init__()
@@ -30,7 +33,10 @@ class ComponentListDialog(tkinter.Toplevel):
             if pin[2] not in self.by_refdes: self.by_refdes[pin[2]] = []
             self.by_refdes[pin[2]].append(pin[:2])
 
-        c_sorted = sorted(self.components.items(), key=lambda x: int(x[0].upper().strip("ABCDEFGHIJKLMNOPQRSTUVWXYZ")))
+        print(self.components.keys())
+        def int_safe(x): return int(x) if x.isnumeric() else -1
+        if "" in self.components: del self.components[""]
+        c_sorted = sorted(self.components.items(), key=lambda x: int_safe(x[0][len(x[0].strip("0123456789")):]))
         c_sorted = sorted(c_sorted, key=lambda x: x[0].strip("0123456789"))
 
         for i, (refdes, attr) in enumerate(c_sorted):

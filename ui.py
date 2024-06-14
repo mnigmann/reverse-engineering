@@ -8,6 +8,7 @@ from cv2 import cv2
 import numpy
 import os.path
 import time
+import sys
 
 import fill_holes
 import find_components
@@ -62,6 +63,7 @@ class MainWindow(tkinter.Tk):
 
         self.editmenu = tkinter.Menu(self.menubar, tearoff=0)
         self.editmenu.add_command(label="Fill boundary", command=self.fill_boundary)
+        self.editmenu.add_command(label="Adjust perspective", command=self.transform_warp_component)
         self.editmenu.add_separator()
         self.editmenu.add_command(label="New layer", command=self.new_layer)
         self.editmenu.add_command(label="Export layer", command=self.export_layer)
@@ -70,6 +72,7 @@ class MainWindow(tkinter.Tk):
         self.editmenu.add_command(label="Erode", command=self.transform_erode)
         self.editmenu.add_command(label="Sobel", command=self.transform_sobel)
         self.editmenu.add_command(label="Fill holes", command=self.transform_fill_holes)
+        self.editmenu.add_command(label="Erase noise", command=self.transform_erase_noise)
         self.editmenu.add_command(label="block avg", command=self.transform_block_average)
         self.editmenu.add_separator()
         self.editmenu.add_command(label="List components", command=lambda: list_components.ComponentListDialog(self.project["components"], self.project["pins"], self.scrollto))
@@ -151,7 +154,7 @@ class MainWindow(tkinter.Tk):
         self.layers_frame = tkinter.LabelFrame(self.sidebar, text="Drawing layers")
         self.layers_frame.grid(row=1, column=0, sticky="ew")
 
-        self.layers_list = tkinter.Listbox(self.layers_frame, width=15, selectmode=tkinter.SINGLE, height=5, exportselection=False)
+        self.layers_list = tkinter.Listbox(self.layers_frame, width=15, selectmode=tkinter.EXTENDED, height=5, exportselection=False)
         self.layers_list.grid(row=0, column=0, sticky="ew")
 
 
@@ -218,6 +221,11 @@ class MainWindow(tkinter.Tk):
         if not selected: return
         selected = self.layers_list.get(selected[0])
         return [l for l in self.layers if l.name == selected][0]
+
+    def get_active_layer_names(self):
+        selected = self.layers_list.curselection()
+        if not selected: return
+        return [self.layers_list.get(x) for x in selected]
 
     # Functions for creating new projects
     def new_project(self):
@@ -424,6 +432,7 @@ class MainWindow(tkinter.Tk):
     def generate_netlist_v3(self, recalc=True, genfile=True):
         layers = {l.name: l for l in self.layers}
         pins_mapped = [layers[p[4]].nets[p[1], p[0]] for p in self.project["pins"]]
+        print(pins_mapped)
 
         total_nets = 2
         for l in self.layers:
@@ -435,8 +444,10 @@ class MainWindow(tkinter.Tk):
 
         g = networkx.Graph()
         for x in self.project["pins"]:
-            r = layers[x[4]].nets[x[1], x[0]]
-            for l in x[5:]:
+            lnz = [l for l in x[4:] if layers[l].nets[x[1], x[0]] > 1]
+            if not lnz: continue
+            r = layers[lnz[0]].nets[x[1], x[0]]
+            for l in lnz[1:]:
                 g.add_edge(r, layers[l].nets[x[1], x[0]])
                 print("adding edge", r, layers[l].nets[x[1], x[0]], x)
 
@@ -814,7 +825,7 @@ class MainWindow(tkinter.Tk):
         elif m == 3 and l.name != "__component__":
             print("Click state is", event.state)
             # Create a dialog for entering the refdes and pin number
-            view_comp.PinCreateDialog(self.project["pins"], self.project["components"], self.get_active_layer().name, int(ex), int(ey),
+            view_comp.PinCreateDialog(self.project["pins"], self.project["components"], self.get_active_layer_names(), int(ex), int(ey),
                                       event.state & 1, self.add_pin)
 
     def propagate_unclick(self, event):
@@ -995,6 +1006,18 @@ class MainWindow(tkinter.Tk):
         l[:, :, 1] = l[:, :, 0]
         l[:, :, 2] = l[:, :, 0]
 
+    def transform_erase_noise(self):
+        l = self.get_active_layer().layer
+        thr = int(tkinter.simpledialog.askstring("Erase noise", "Maximum area"))
+        nets, n = find_loops.find_traces_fast(l[:, :, 0], True, 2)
+        unique, counts = numpy.unique(nets, return_counts=True)
+        mask = numpy.zeros(n, dtype=bool)
+        mask[unique] = counts < thr
+        l[mask[nets]] = 0
+
+    def transform_warp_component(self):
+        self._ps = projectsetup.ProjectSetupDialog(self.solder_arr, self.comp_arr, "", lambda s, c: self.__setattr__("comp_arr", c), False)
+
     def transform_block_average(self):
         l = self.get_active_layer().layer
         so = self.solder_arr
@@ -1042,6 +1065,5 @@ class MainWindow(tkinter.Tk):
 if __name__ == "__main__":
     numpy.set_printoptions(threshold=numpy.inf)
     mw = MainWindow()
-    mw.open_project("/Users/matthias/Documents/reverse_engineering/inverter.zip")
-    #mw.open_project("/Users/matthias/Documents/Python/EdgeDetect/net_test_v2.zip")
+    mw.open_project(sys.argv[1])
     mw.mainloop()

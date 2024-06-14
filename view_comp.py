@@ -81,7 +81,7 @@ class PinEditDialog(tkinter.Toplevel):
 
 
 class PinCreateDialog(tkinter.Toplevel):
-    def __init__(self, pins, components, default_layer, ex, ey, shift, command, refdes="", pinnumber="", layers=""):
+    def __init__(self, pins, components, default_layers, ex, ey, shift, command, refdes="", pinnumber="", layers=""):
         super().__init__()
 
         self.pins = pins
@@ -89,7 +89,7 @@ class PinCreateDialog(tkinter.Toplevel):
         self.refdes = refdes
         self.pinnumber = pinnumber
         self.layers = layers
-        self.default_layer = default_layer
+        self.default_layers = default_layers
         self.ex, self.ey, self.shift = ex, ey, shift
         self.command = command
         print("shift", self.shift)
@@ -133,7 +133,7 @@ class PinCreateDialog(tkinter.Toplevel):
         layers = self.l.get()
         self.destroy()
         print("Adding pin at", refdes, pinnumber, "to layers", layers)
-        ll = [self.default_layer] + ([nl.strip() for nl in layers.split(",")] if layers.strip() else [])
+        ll = self.default_layers + ([nl.strip() for nl in layers.split(",")] if layers.strip() else [])
         target = []
         target_comp = self.components
         if self.pins and self.shift:

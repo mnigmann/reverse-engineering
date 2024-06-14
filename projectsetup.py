@@ -1,5 +1,6 @@
 import json
 import tkinter
+import typing
 import zipfile
 import os.path
 
@@ -11,19 +12,31 @@ import base64
 
 
 class ProjectSetupDialog(tkinter.Toplevel):
-    def __init__(self, solder_fname, comp_fname, project_name, on_complete):
+    def __init__(self, solder_fname, comp_fname, project_name, on_complete, save=True):
+        """
+        Dialog for distorting one image to line up with another
+
+        :param solder_fname: Filename or array of solder side image
+        :param comp_fname: Filename or array of component side image
+        :param project_name: Filename for saving project file. Can be "" if save=False
+        :param on_complete: Function that is called when the user is done
+        :param save: Determines whether the final images are stored to a project file when done.
+        """
         super().__init__()
+        print("Initializing setup dialog")
         self.photo = []
         self.on_complete = on_complete
-        self.solder_marks = [] #[(1252, 991), (3253, 1194), (3263, 2059), (2146, 2257)]
-        self.comp_marks = [] #[(734, 2504), (3355, 2296), (3282, 1165), (1866, 947)]
+        self.save = save
+        self.solder_marks = [] # [(495, 235), (2397, 231), (1812, 3088), (534, 3304)]
+        self.comp_marks = [] # [(495, 235), (2390, 231), (1809, 3115), (521, 3329)]
         self.comp_idx = []
         self.solder_idx = []
         self.solder_active = []
         self.comp_active = []
         self.show_comp = False
-        self.solder_arr = cv2.imread(solder_fname)[:, :, ::-1]
-        self.comp_arr = cv2.imread(comp_fname)[:, :, ::-1]
+        self.solder_arr = (cv2.imread(solder_fname) if isinstance(solder_fname, str) else solder_fname)[:, :, ::-1]
+        self.comp_arr = (cv2.imread(comp_fname) if isinstance(comp_fname, str) else comp_fname)[:, :, ::-1]
+        print("loaded images")
         self.solder_fname = solder_fname
         self.comp_fname = comp_fname
         self.project_name = project_name
@@ -34,9 +47,10 @@ class ProjectSetupDialog(tkinter.Toplevel):
         self.fac_s = 1
         self.fac_c = 1
         self.canvas_lastsize = []
+        print("configuring")
         self.rowconfigure(1, weight=1)
         self.columnconfigure(0, weight=1)
-        print("Setting up {} and {}".format(solder_fname, comp_fname))
+        print("Setting up {} and {}")
 
         tkinter.Label(self, text="""Select 4 points on the solder side image
 Then select corresponding points on the component side""").grid(row=0, column=0, columnspan=3)
@@ -135,22 +149,25 @@ Then select corresponding points on the component side""").grid(row=0, column=0,
             self.solder_idx = []
             self.solder_marks = []
 
-    def process_images(self):
+    def process_images(self, command=None):
         print("Component side marks", self.comp_marks)
         print("Solder side marks", self.solder_marks)
         if len(self.comp_marks) == len(self.solder_marks) == 4:
             tr = cv2.getPerspectiveTransform(numpy.float32(self.comp_marks), numpy.float32(self.solder_marks))
             result = cv2.warpPerspective(self.comp_arr[:, :, ::-1], tr, dsize=self.solder_arr.shape[1::-1])
             print(result.shape)
-            cv2.imwrite("/tmp/corrected.png", result)
-            cv2.imwrite("/tmp/solder.png", self.solder_arr[:, :, ::-1])
-            cv2.imwrite("/tmp/LAYERBottom.png", numpy.zeros(self.solder_arr.shape))
-            with zipfile.ZipFile(self.project_name, "w") as z:
-                z.write("/tmp/solder.png", "solder.png")
-                z.write("/tmp/corrected.png", "comp.png")
-                z.write("/tmp/LAYERBottom.png", "LAYERBottom.png")
-                z.writestr("/tmp/setup.json", "")
-            self.on_complete()
+            if self.save:
+                cv2.imwrite("/tmp/corrected.png", result)
+                cv2.imwrite("/tmp/solder.png", self.solder_arr[:, :, ::-1])
+                cv2.imwrite("/tmp/LAYERBottom.png", numpy.zeros(self.solder_arr.shape))
+                with zipfile.ZipFile(self.project_name, "w") as z:
+                    z.write("/tmp/solder.png", "solder.png")
+                    z.write("/tmp/corrected.png", "comp.png")
+                    z.write("/tmp/LAYERBottom.png", "LAYERBottom.png")
+                    z.writestr("/tmp/setup.json", "")
+                self.on_complete()
+            else:
+                self.on_complete(self.solder_arr[:, :, ::-1], result)
 
 
 if __name__ == '__main__':
