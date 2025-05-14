@@ -4,7 +4,10 @@ import zipfile
 from tkinter import filedialog
 from tkinter import colorchooser
 from tkinter import simpledialog
-from cv2 import cv2
+try:
+    from cv2 import cv2
+except ImportError:
+    import cv2
 import numpy
 import os.path
 import time

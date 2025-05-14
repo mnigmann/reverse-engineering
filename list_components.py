@@ -2,8 +2,6 @@ import tkinter
 from tkinter import ttk
 from tkinter import simpledialog
 
-import cv2.cv2
-
 
 class ComponentListDialog(tkinter.Toplevel):
     def __init__(self, components: dict, pins: dict, scrollto_command):

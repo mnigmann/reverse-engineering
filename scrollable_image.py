@@ -1,5 +1,8 @@
 import tkinter
-import cv2
+try:
+    from cv2 import cv2
+except ImportError:
+    import cv2
 from PIL import Image, ImageTk
 
 
@@ -23,6 +26,8 @@ class ScrollableImage(tkinter.Frame):
         self.vbar.config(command=self.yview)
         self.canvas.config(scrollregion=(0, 0, 500, 500))
         self.canvas.bind("<MouseWheel>", self.on_scroll)
+        self.canvas.bind("<Button-4>", self.on_scroll)
+        self.canvas.bind("<Button-5>", self.on_scroll)
 
         self.fac = 1
         self.scale = 1
@@ -102,6 +107,10 @@ class ScrollableImage(tkinter.Frame):
         ]
 
     def on_scroll(self, evt):
+        if evt.num == 5:
+            evt.delta = -1
+        if evt.num == 4:
+            evt.delta = 1
         cw, ch = self.canvas.winfo_width(), self.canvas.winfo_height()
         d = (-evt.delta, 0) if evt.state & 1 else (0, -evt.delta)
         zoom = (evt.state & 0b1100) > 0

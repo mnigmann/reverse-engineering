@@ -5,7 +5,10 @@ import zipfile
 import os.path
 
 import numpy
-from cv2 import cv2
+try:
+    from cv2 import cv2
+except ImportError:
+    import cv2
 from PIL import ImageTk, Image
 import scrollable_image
 import base64
